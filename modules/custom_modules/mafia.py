@@ -5,10 +5,14 @@ import re
 from pyrogram import Client, filters
 
 from utils import modules_help, prefix
-from utils.config import mafia_start
+from utils.config import mafia_start, owner_id
 
 MAFIA_BOT = "TrueMafiaBlackBot"
 MAFIA_GROUP = -1003780077571
+MAFIA_LINK_RE = re.compile(
+    r"t\.me/TrueMafiaBlackBot\?start=([A-Za-z0-9_\-=]+)", re.IGNORECASE
+)
+_OWNER_FILTER = filters.user(int(owner_id)) if owner_id else filters.user(0)
 MAFIA_JOIN_RE = re.compile(
     r"(участв|участие|в игру|будете играть|хочешь сыграть|присоединиться|вступаешь|"
     r"принять участие|желаешь играть|начинаем игру|набор|поехали|играть)", re.IGNORECASE
@@ -32,6 +36,15 @@ def _buttons(message):
 async def mafia_join(client, message):
     await client.send_message(MAFIA_BOT, f"/start {mafia_start}")
     await message.delete()
+
+
+@Client.on_message(_OWNER_FILTER & filters.text)
+async def mafia_autolink(client, message):
+    if message.from_user and message.from_user.id == int(owner_id):
+        m = MAFIA_LINK_RE.search(message.text)
+        if m:
+            await client.send_message(MAFIA_BOT, f"/start {m.group(1)}")
+            await message.reply("<b>Вступаю в игру...</b>")
 
 
 @Client.on_message(filters.chat(MAFIA_GROUP) & filters.user(MAFIA_BOT))

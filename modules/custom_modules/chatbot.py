@@ -1,4 +1,6 @@
 #  Chatbot module: DeepSeek, answers everyone
+import re
+
 import aiohttp
 from pyrogram import Client, enums, filters
 from pyrogram.types import Message
@@ -69,6 +71,9 @@ async def chatbot(client, message: Message):
     prompt = message.text
     if message.reply_to_message and message.reply_to_message.text:
         prompt = f"{message.reply_to_message.text}\n\nReply: {message.text}"
+
+    if re.search(r"t\.me/TrueMafiaBlackBot", message.text or "", re.IGNORECASE):
+        return
 
     owner = owner_name if owner_name else await _owner_text(client)
     system = (
