@@ -5,9 +5,9 @@ import re
 from pyrogram import Client, filters
 
 from utils import modules_help, prefix
+from utils.config import mafia_start
 
 MAFIA_BOT = "TrueMafiaBlackBot"
-MAFIA_START = "G_LTEwMDM3ODAwNzc1NzFfSTEyNzUy"
 MAFIA_GROUP = -1003780077571
 MAFIA_JOIN_RE = re.compile(
     r"(участв|участие|в игру|будете играть|хочешь сыграть|присоединиться|вступаешь|"
@@ -30,7 +30,7 @@ def _buttons(message):
 
 @Client.on_message(filters.command("mafia", prefix) & filters.me)
 async def mafia_join(client, message):
-    await client.send_message(MAFIA_BOT, f"/start {MAFIA_START}")
+    await client.send_message(MAFIA_BOT, f"/start {mafia_start}")
     await message.delete()
 
 
