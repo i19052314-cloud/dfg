@@ -4,7 +4,7 @@ from pyrogram import Client, enums, filters
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
-from utils.config import deepseek_base_url, deepseek_key, deepseek_model
+from utils.config import deepseek_base_url, deepseek_key, deepseek_model, owner_id, owner_name
 from utils.db import db
 
 _TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
@@ -63,11 +63,12 @@ async def chatbot(client, message: Message):
     if message.reply_to_message and message.reply_to_message.text:
         prompt = f"{message.reply_to_message.text}\n\nReply: {message.text}"
 
-    owner = await _owner_text(client)
+    owner = owner_name if owner_name else await _owner_text(client)
     system = (
         "Ты — личный ИИ-ассистент, работающий в Telegram. "
-        f"Твой владелец: {owner}. "
-        "Обращайся к нему уважительно, по делу и кратко. "
+        f"Твой владелец: {owner}"
+        + (f" (ID: {owner_id})" if owner_id else "")
+        + ". Обращайся к нему уважительно, по делу и кратко. "
         "Отвечай на том же языке, на котором написан запрос."
     )
 

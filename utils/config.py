@@ -32,6 +32,8 @@ deepseek_base_url = os.getenv(
     "DEEPSEEK_BASE_URL", env.str("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 )
 deepseek_model = os.getenv("DEEPSEEK_MODEL", env.str("DEEPSEEK_MODEL", "deepseek-v4-flash"))
+owner_id = os.getenv("OWNER_ID", env.str("OWNER_ID", ""))
+owner_name = os.getenv("OWNER_NAME", env.str("OWNER_NAME", ""))
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
 
 pm_limit = int(os.getenv("PM_LIMIT", env.int("PM_LIMIT", 4)))
