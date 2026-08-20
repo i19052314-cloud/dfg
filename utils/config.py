@@ -27,6 +27,8 @@ apiflash_key = os.getenv("APIFLASH_KEY", env.str("APIFLASH_KEY"))
 rmbg_key = os.getenv("RMBG_KEY", env.str("RMBG_KEY", ""))
 vt_key = os.getenv("VT_KEY", env.str("VT_KEY", ""))
 gemini_key = os.getenv("GEMINI_KEY", env.str("GEMINI_KEY", ""))
+glm_key = os.getenv("GLM_KEY", env.str("GLM_KEY", ""))
+glm_model = os.getenv("GLM_MODEL", env.str("GLM_MODEL", "glm-5.2"))
 manus_key = os.getenv("MANUS_KEY", env.str("MANUS_KEY", ""))
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
 
