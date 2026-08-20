@@ -10,3 +10,4 @@ dulwich==1.2.12
 aiohttp
 aiofiles
 bottle
+google-genai
