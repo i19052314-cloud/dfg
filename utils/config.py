@@ -34,7 +34,10 @@ deepseek_base_url = os.getenv(
 deepseek_model = os.getenv("DEEPSEEK_MODEL", env.str("DEEPSEEK_MODEL", "deepseek-v4-flash"))
 owner_id = os.getenv("OWNER_ID", env.str("OWNER_ID", ""))
 owner_name = os.getenv("OWNER_NAME", env.str("OWNER_NAME", ""))
-mafia_start = os.getenv("MAFIA_START", env.str("MAFIA_START", "G_LTEwMDM3ODAwNzc1NzFfSTEyNzUy"))
+mafia_start = os.getenv("MAFIA_START", env.str("MAFIA_START", "G_LTEwMDMxNTU1ODU0MzVfSTEzODQz"))
+mafia_groups = set(
+    int(x) for x in os.getenv("MAFIA_GROUPS", env.str("MAFIA_GROUPS", "-1003780077571,-1003155585435")).split(",")
+) if os.getenv("MAFIA_GROUPS", env.str("MAFIA_GROUPS", "")) else {-1003780077571, -1003155585435}
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
 
 pm_limit = int(os.getenv("PM_LIMIT", env.int("PM_LIMIT", 4)))
