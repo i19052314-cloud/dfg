@@ -27,12 +27,11 @@ apiflash_key = os.getenv("APIFLASH_KEY", env.str("APIFLASH_KEY"))
 rmbg_key = os.getenv("RMBG_KEY", env.str("RMBG_KEY", ""))
 vt_key = os.getenv("VT_KEY", env.str("VT_KEY", ""))
 gemini_key = os.getenv("GEMINI_KEY", env.str("GEMINI_KEY", ""))
-glm_key = os.getenv("GLM_KEY", env.str("GLM_KEY", ""))
-glm_base_url = os.getenv(
-    "GLM_BASE_URL", env.str("GLM_BASE_URL", "https://api.z.ai/api/paas/v4")
+deepseek_key = os.getenv("DEEPSEEK_KEY", env.str("DEEPSEEK_KEY", ""))
+deepseek_base_url = os.getenv(
+    "DEEPSEEK_BASE_URL", env.str("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 )
-glm_model = os.getenv("GLM_MODEL", env.str("GLM_MODEL", "glm-5.2"))
-manus_key = os.getenv("MANUS_KEY", env.str("MANUS_KEY", ""))
+deepseek_model = os.getenv("DEEPSEEK_MODEL", env.str("DEEPSEEK_MODEL", "deepseek-v4-flash"))
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
 
 pm_limit = int(os.getenv("PM_LIMIT", env.int("PM_LIMIT", 4)))

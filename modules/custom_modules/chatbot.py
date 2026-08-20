@@ -1,30 +1,48 @@
-#  Chatbot module: Gemini, answers everyone
-import asyncio
-
+#  Chatbot module: DeepSeek, answers everyone
+import aiohttp
 from pyrogram import Client, enums, filters
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
-from utils.config import gemini_key
+from utils.config import deepseek_base_url, deepseek_key, deepseek_model
 from utils.db import db
-from utils.scripts import format_exc, import_library
-
-genai = import_library("google.genai", "google-genai")
-from google.genai import errors as genai_errors
-
-_gemini = genai.Client(api_key=gemini_key).aio
 
 _TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
 
-_MODEL = "gemini-3-flash"
+
+async def _chat(prompt):
+    headers = {
+        "Authorization": f"Bearer {deepseek_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": deepseek_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 2048,
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            deepseek_base_url.rstrip("/") + "/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=120),
+        ) as resp:
+            data = await resp.json()
+            if resp.status != 200:
+                raise RuntimeError(
+                    data.get("error", {}).get("message", f"HTTP {resp.status}")
+                )
+            return data["choices"][0]["message"]["content"]
 
 
 @Client.on_message(_TRIGGER)
 async def chatbot(_, message: Message):
     if not db.get("core.chatbot", "enabled", True):
         return
-    if not gemini_key:
-        await message.reply_text("<b>GEMINI_KEY не задан в переменных окружения!</b>")
+    if not deepseek_key:
+        await message.reply_text(
+            "<b>DEEPSEEK_KEY не задан в переменных окружения!</b>"
+        )
         return
 
     prompt = message.text
@@ -33,27 +51,10 @@ async def chatbot(_, message: Message):
 
     try:
         await message.reply_chat_action(enums.ChatAction.TYPING)
-        for attempt in range(3):
-            try:
-                response = await _gemini.models.generate_content(
-                    model=_MODEL, contents=prompt
-                )
-                break
-            except genai_errors.ClientError as exc:
-                if exc.code != 429 or attempt == 2:
-                    raise
-                await asyncio.sleep(35)
-        await message.reply_text(response.text)
-    except genai_errors.ClientError as exc:
-        if exc.code == 429:
-            await message.reply_text(
-                "<b>Gemini лимит исчерпан (5 запросов/мин на бесплатном тарифе). "
-                "Подожди ~1 минуту и попробуй снова.</b>"
-            )
-        else:
-            await message.reply_text(f"An error occurred: {format_exc(exc)}")
+        answer = await _chat(prompt)
+        await message.reply_text(answer)
     except Exception as e:
-        await message.reply_text(f"An error occurred: {format_exc(e)}")
+        await message.reply_text(f"An error occurred: {e}")
 
 
 @Client.on_message(filters.command("chatoff", prefix) & filters.me)
