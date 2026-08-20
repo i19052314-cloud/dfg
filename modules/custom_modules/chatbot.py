@@ -9,15 +9,29 @@ from utils.db import db
 
 _TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
 
+_owner_cache = {}
 
-async def _chat(prompt):
+
+async def _owner_text(client):
+    if "me" not in _owner_cache:
+        me = await client.get_me()
+        name = (me.first_name or "") + (" " + me.last_name if me.last_name else "")
+        uname = f" (@{me.username})" if me.username else ""
+        _owner_cache["me"] = f"{name.strip()}{uname}"
+    return _owner_cache["me"]
+
+
+async def _chat(prompt, system):
     headers = {
         "Authorization": f"Bearer {deepseek_key}",
         "Content-Type": "application/json",
     }
     payload = {
         "model": deepseek_model,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
         "max_tokens": 2048,
     }
     async with aiohttp.ClientSession() as session:
@@ -36,7 +50,7 @@ async def _chat(prompt):
 
 
 @Client.on_message(_TRIGGER)
-async def chatbot(_, message: Message):
+async def chatbot(client, message: Message):
     if not db.get("core.chatbot", "enabled", True):
         return
     if not deepseek_key:
@@ -49,9 +63,17 @@ async def chatbot(_, message: Message):
     if message.reply_to_message and message.reply_to_message.text:
         prompt = f"{message.reply_to_message.text}\n\nReply: {message.text}"
 
+    owner = await _owner_text(client)
+    system = (
+        "Ты — личный ИИ-ассистент, работающий в Telegram. "
+        f"Твой владелец: {owner}. "
+        "Обращайся к нему уважительно, по делу и кратко. "
+        "Отвечай на том же языке, на котором написан запрос."
+    )
+
     try:
         await message.reply_chat_action(enums.ChatAction.TYPING)
-        answer = await _chat(prompt)
+        answer = await _chat(prompt, system)
         await message.reply_text(answer)
     except Exception as e:
         await message.reply_text(f"An error occurred: {e}")
