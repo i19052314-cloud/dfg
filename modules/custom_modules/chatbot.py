@@ -90,6 +90,7 @@ async def chatbot(client, message: Message):
     try:
         await message.reply_chat_action(enums.ChatAction.TYPING)
         answer = await _chat(prompt, system)
+        answer = re.sub(r"https?://\S+", "ссылка удалена", answer)
         await message.reply_text(answer)
     except Exception as e:
         await message.reply_text(f"An error occurred: {e}")
