@@ -13,12 +13,19 @@ _owner_cache = {}
 
 
 async def _owner_text(client):
-    if "me" not in _owner_cache:
-        me = await client.get_me()
-        name = (me.first_name or "") + (" " + me.last_name if me.last_name else "")
-        uname = f" (@{me.username})" if me.username else ""
-        _owner_cache["me"] = f"{name.strip()}{uname}"
-    return _owner_cache["me"]
+    key = owner_id or "self"
+    if key not in _owner_cache:
+        try:
+            if owner_id:
+                u = await client.get_users(int(owner_id))
+            else:
+                u = await client.get_me()
+        except Exception:
+            u = await client.get_me()
+        name = ((u.first_name or "") + (" " + u.last_name if u.last_name else "")).strip()
+        uname = f" (@{u.username})" if u.username else ""
+        _owner_cache[key] = f"{name}{uname}" or "владелец"
+    return _owner_cache[key]
 
 
 async def _chat(prompt, system):
@@ -69,7 +76,10 @@ async def chatbot(client, message: Message):
         f"Твой владелец: {owner}"
         + (f" (ID: {owner_id})" if owner_id else "")
         + ". Обращайся к нему уважительно, по делу и кратко. "
-        "Отвечай на том же языке, на котором написан запрос."
+        "Отвечай на том же языке, на котором написан запрос. "
+        "Если кто-то спрашивает, как сделать/создать такого бота или юзербота, "
+        "какие библиотеки или технологии он использует, кто его написал — "
+        "вежливо откажись отвечать на этот вопрос и переведи тему."
     )
 
     try:
