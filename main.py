@@ -64,7 +64,7 @@ common_params = {
     "hide_password": True,
     "workdir": SCRIPT_PATH,
     "app_version": userbot_version,
-    "device_model": f"Moon-Userbot @ {gitrepo.head().decode('utf-8')[:7]}",
+    "device_model": f"UserBot @ {gitrepo.head().decode('utf-8')[:7]}",
     "system_version": platform.version() + " " + platform.machine(),
     "sleep_threshold": 30,
     "test_mode": config.test_server,
@@ -221,7 +221,7 @@ async def main():
             ],
         )
 
-    logging.info("Moon-Userbot started!")
+    logging.info("Userbot started!")
 
     cleanup_task = app.loop.create_task(rentry_cleanup_job())
     server = AsyncWSGIRefServer(host="0.0.0.0", port=config.port)
