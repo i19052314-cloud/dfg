@@ -7,10 +7,9 @@ from pyrogram import Client, enums, filters
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
-from utils.config import glm_key, glm_model, manus_key
+from utils.config import glm_base_url, glm_key, glm_model, manus_key
 from utils.db import db
 
-GLM_API = "https://api.z.ai/api/paas/v4/chat/completions"
 MANUS_API = "https://api.manus.ai/v2"
 MANUS_TASK = "agent-default-main_task"
 MANUS_POLL_INTERVAL = 5
@@ -30,7 +29,7 @@ async def _glm_chat(prompt):
     }
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            GLM_API,
+            glm_base_url.rstrip("/") + "/chat/completions",
             headers=headers,
             json=payload,
             timeout=aiohttp.ClientTimeout(total=120),
