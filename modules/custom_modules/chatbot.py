@@ -1,56 +1,89 @@
-#  Modified chatbot module (Gemini) - answers everyone
+#  Manus chatbot module - answers everyone
 import asyncio
+import time
 
+import aiohttp
 from pyrogram import Client, enums, filters
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
-from utils.config import gemini_key
+from utils.config import manus_key
 from utils.db import db
-from utils.scripts import format_exc, import_library
 
-genai = import_library("google.genai", "google-genai")
-from google.genai import errors as genai_errors
+API = "https://api.manus.ai/v2"
+MAIN_TASK = "agent-default-main_task"
+POLL_INTERVAL = 5
+MAX_WAIT = 240
 
-_gemini = genai.Client(api_key=gemini_key).aio
+_busy = asyncio.Lock()
 
 _TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
 
-_MODEL = "gemini-3-flash"
+
+async def _api(path, payload=None):
+    headers = {"x-manus-api-key": manus_key, "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        if payload is not None:
+            async with session.post(API + path, headers=headers, json=payload) as resp:
+                return resp.status, await resp.json()
+        async with session.get(API + path, headers=headers) as resp:
+            return resp.status, await resp.json()
+
+
+async def _poll_answer(after_ts):
+    status, data = await _api(
+        f"/task.listMessages?task_id={MAIN_TASK}&order=desc&limit=5"
+    )
+    if status != 200:
+        raise RuntimeError(data.get("error", {}).get("message", f"HTTP {status}"))
+    for m in data.get("messages", []):
+        mtype = m.get("type")
+        if mtype == "status_update":
+            agent_status = m.get("status_update", {}).get("agent_status")
+            if agent_status == "error":
+                raise RuntimeError("Manus task error")
+        if mtype == "assistant_message" and int(m.get("timestamp", 0)) > after_ts:
+            return m["assistant_message"].get("content")
+    return None
 
 
 @Client.on_message(_TRIGGER)
 async def chatbot(_, message: Message):
     if not db.get("core.chatbot", "enabled", True):
         return
+    if not manus_key:
+        await message.reply_text("<b>MANUS_KEY не задан в переменных окружения!</b>")
+        return
 
     prompt = message.text
     if message.reply_to_message and message.reply_to_message.text:
         prompt = f"{message.reply_to_message.text}\n\nReply: {message.text}"
 
-    try:
-        await message.reply_chat_action(enums.ChatAction.TYPING)
-        for attempt in range(3):
-            try:
-                response = await _gemini.models.generate_content(
-                    model=_MODEL, contents=prompt
-                )
-                break
-            except genai_errors.ClientError as exc:
-                if exc.code != 429 or attempt == 2:
-                    raise
-                await asyncio.sleep(35)
-        await message.reply_text(response.text)
-    except genai_errors.ClientError as exc:
-        if exc.code == 429:
-            await message.reply_text(
-                "<b>Gemini лимит исчерпан (5 запросов/мин на бесплатном тарифе). "
-                "Подожди ~1 минуту и попробуй снова.</b>"
+    await message.reply_chat_action(enums.ChatAction.TYPING)
+    thinking = await message.reply_text("<b>⏳ Manus думает...</b>")
+
+    async with _busy:
+        try:
+            sent_ms = int(time.time() * 1000)
+            status, data = await _api(
+                "/task.sendMessage",
+                {"task_id": MAIN_TASK, "message": {"content": prompt}},
             )
-        else:
-            await message.reply_text(f"An error occurred: {format_exc(exc)}")
-    except Exception as e:
-        await message.reply_text(f"An error occurred: {format_exc(e)}")
+            if status != 200:
+                raise RuntimeError(data.get("error", {}).get("message", f"HTTP {status}"))
+
+            deadline = time.time() + MAX_WAIT
+            while time.time() < deadline:
+                await asyncio.sleep(POLL_INTERVAL)
+                answer = await _poll_answer(sent_ms)
+                if answer:
+                    await thinking.edit_text(answer)
+                    return
+            await thinking.edit_text(
+                "<b>Manus думал слишком долго. Попробуй ещё раз.</b>"
+            )
+        except Exception as e:
+            await thinking.edit_text(f"<b>Ошибка:</b> {e}")
 
 
 @Client.on_message(filters.command("chatoff", prefix) & filters.me)

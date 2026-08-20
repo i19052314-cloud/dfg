@@ -27,6 +27,7 @@ apiflash_key = os.getenv("APIFLASH_KEY", env.str("APIFLASH_KEY"))
 rmbg_key = os.getenv("RMBG_KEY", env.str("RMBG_KEY", ""))
 vt_key = os.getenv("VT_KEY", env.str("VT_KEY", ""))
 gemini_key = os.getenv("GEMINI_KEY", env.str("GEMINI_KEY", ""))
+manus_key = os.getenv("MANUS_KEY", env.str("MANUS_KEY", ""))
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
 
 pm_limit = int(os.getenv("PM_LIMIT", env.int("PM_LIMIT", 4)))
