@@ -39,6 +39,7 @@ mafia_groups = set(
     int(x) for x in os.getenv("MAFIA_GROUPS", env.str("MAFIA_GROUPS", "-1003780077571,-1003155585435")).split(",")
 ) if os.getenv("MAFIA_GROUPS", env.str("MAFIA_GROUPS", "")) else {-1003780077571, -1003155585435}
 cohere_key = os.getenv("COHERE_KEY", env.str("COHERE_KEY", ""))
+openai_key = os.getenv("OPENAI_KEY", env.str("OPENAI_KEY", ""))
 
 pm_limit = int(os.getenv("PM_LIMIT", env.int("PM_LIMIT", 4)))
 
