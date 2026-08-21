@@ -11,4 +11,3 @@ aiohttp
 aiofiles
 bottle
 google-genai
-openai>=1.30.0
