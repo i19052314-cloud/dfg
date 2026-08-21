@@ -1,8 +1,10 @@
 #  Chatbot module: DeepSeek, answers everyone
+import json
 import re
 
 import aiohttp
 from pyrogram import Client, enums, filters
+from pyrogram.errors import ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
@@ -50,12 +52,35 @@ async def _chat(prompt, system):
             json=payload,
             timeout=aiohttp.ClientTimeout(total=120),
         ) as resp:
-            data = await resp.json()
-            if resp.status != 200:
-                raise RuntimeError(
-                    data.get("error", {}).get("message", f"HTTP {resp.status}")
-                )
-            return data["choices"][0]["message"]["content"]
+            raw = await resp.text()
+            try:
+                data = json.loads(raw)
+            except (ValueError, json.JSONDecodeError):
+                data = None
+
+            if resp.status != 200 or not isinstance(data, dict):
+                raise RuntimeError(_extract_error(data, raw, resp.status))
+
+            try:
+                return data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError):
+                raise RuntimeError(_extract_error(data, raw, resp.status))
+
+
+def _extract_error(data, raw, status):
+    """Достаёт человекочитаемую ошибку из ответа любой формы."""
+    if isinstance(data, dict):
+        err = data.get("error", data.get("message"))
+        if isinstance(err, dict):
+            msg = err.get("message") or err.get("code") or err.get("type")
+            if msg:
+                return str(msg)
+        elif isinstance(err, str) and err:
+            return err
+    snippet = (raw or "").strip()
+    if snippet:
+        return f"HTTP {status}: {snippet[:300]}"
+    return f"HTTP {status}"
 
 
 @Client.on_message(_TRIGGER)
@@ -88,12 +113,21 @@ async def chatbot(client, message: Message):
     )
 
     try:
-        await message.reply_chat_action(enums.ChatAction.TYPING)
+        try:
+            await message.reply_chat_action(enums.ChatAction.TYPING)
+        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+            pass
         answer = await _chat(prompt, system)
         answer = re.sub(r"https?://\S+", "ссылка удалена", answer)
         await message.reply_text(answer)
+    except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+        # Нельзя писать в этот чат (бан/блок/ограничение) — просто выходим
+        return
     except Exception as e:
-        await message.reply_text(f"An error occurred: {e}")
+        try:
+            await message.reply_text(f"An error occurred: {e}")
+        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+            return
 
 
 @Client.on_message(filters.command("chatoff", prefix) & filters.me)
