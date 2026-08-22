@@ -4,7 +4,13 @@ import re
 
 import aiohttp
 from pyrogram import Client, enums, filters
-from pyrogram.errors import ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait
+from pyrogram.errors import (
+    ChannelPrivate,
+    ChatWriteForbidden,
+    UserIsBlocked,
+    PeerIdInvalid,
+    SlowmodeWait,
+)
 from pyrogram.types import Message
 
 from utils import modules_help, prefix
@@ -120,18 +126,18 @@ async def chatbot(client, message: Message):
     try:
         try:
             await message.reply_chat_action(enums.ChatAction.TYPING)
-        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait, ChannelPrivate):
             pass
         answer = await _chat(prompt, system)
         answer = re.sub(r"https?://\S+", "ссылка удалена", answer)
         await message.reply_text(answer)
-    except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+    except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait, ChannelPrivate):
         # Нельзя писать в этот чат (бан/блок/ограничение) — просто выходим
         return
     except Exception as e:
         try:
             await message.reply_text(f"An error occurred: {e}")
-        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait):
+        except (ChatWriteForbidden, UserIsBlocked, PeerIdInvalid, SlowmodeWait, ChannelPrivate):
             return
 
 
