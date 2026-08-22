@@ -24,6 +24,10 @@ MAFIA_PHASE_RE = re.compile(
 MAFIA_DANGER_RE = re.compile(
     r"(выход|выйти|покинуть|меню|профиль|правила|отмена|назад|статистика)", re.IGNORECASE
 )
+MAFIA_RECRUIT_RE = re.compile(
+    r"(вед[её]тся\s+набор|набор\s+в\s+игру|ид[её]т\s+набор|открыт\s+набор|"
+    r"начинаем\s+набор)", re.IGNORECASE
+)
 _OWNER_FILTER = filters.user(int(owner_id)) if owner_id else filters.user(0)
 
 
@@ -43,6 +47,18 @@ def game_group():
 
 def set_game_group(gid):
     db.set("custom.mafia", "group_id", gid)
+
+
+def last_start():
+    return db.get("custom.mafia", "last_start", None) or mafia_start
+
+
+def remember_start(param):
+    db.set("custom.mafia", "last_start", param)
+
+
+async def _join_game(client, param=None):
+    await client.send_message(MAFIA_BOT, f"/start {param or last_start()}")
 
 
 def _buttons(message):
@@ -99,7 +115,7 @@ async def _click(client, message, bt, data):
 
 @Client.on_message(filters.command("mafia", prefix) & filters.me)
 async def mafia_join(client, message):
-    await client.send_message(MAFIA_BOT, f"/start {mafia_start}")
+    await client.send_message(MAFIA_BOT, f"/start {last_start()}")
     await message.delete()
 
 
@@ -126,6 +142,7 @@ async def mafia_autolink(client, message):
     m = MAFIA_LINK_RE.search(message.text or "")
     if m:
         await client.send_message(MAFIA_BOT, f"/start {m.group(1)}")
+        remember_start(m.group(1))
         gid = _decode_group(m.group(1))
         if gid:
             set_game_group(gid)
@@ -138,15 +155,30 @@ async def mafia_autolink(client, message):
 async def mafia_autojoin(client, message):
     m = _find_link(message)
     if m:
-        await client.send_message(MAFIA_BOT, f"/start {m.group(1)}")
+        remember_start(m.group(1))
         gid = _decode_group(m.group(1))
         if gid and gid != game_group():
             set_game_group(gid)
+        await _join_game(client, m.group(1))
+        return
+    # «Ведётся набор в игру» без ссылки — заходим по последней известной ссылке
+    text = message.text or message.caption or ""
+    if text and MAFIA_RECRUIT_RE.search(text):
+        for bt, data in _buttons(message):
+            if MAFIA_JOIN_RE.search(bt):
+                await _click(client, message, bt, data)
+                return
+        await _join_game(client)
 
 
 @Client.on_message(filters.create(_is_game_pm_or_group))
 async def mafia_game(client, message):
     text = message.text or message.caption or ""
+
+    # Сообщения о наборе обрабатывает mafia_autojoin
+    if text and MAFIA_RECRUIT_RE.search(text):
+        return
+
     btns = _buttons(message)
 
     for bt, data in btns:

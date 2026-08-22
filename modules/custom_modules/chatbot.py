@@ -17,7 +17,7 @@ from utils import modules_help, prefix
 from utils.config import deepseek_base_url, deepseek_key, deepseek_model, owner_id, owner_name
 from utils.db import db
 
-_TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
+_TRIGGER = filters.mentioned & filters.text & ~filters.me
 
 _MAFIA_BOT_USERNAME = "truemafiablackbot"
 
