@@ -13,6 +13,8 @@ from utils.db import db
 
 _TRIGGER = (filters.mentioned | filters.reply | filters.private) & filters.text & ~filters.me
 
+_MAFIA_BOT_USERNAME = "truemafiablackbot"
+
 _owner_cache = {}
 
 
@@ -97,6 +99,9 @@ async def chatbot(client, message: Message):
     if message.reply_to_message and message.reply_to_message.text:
         prompt = f"{message.reply_to_message.text}\n\nReply: {message.text}"
 
+    sender = message.from_user
+    if sender and (sender.username or "").lower() == _MAFIA_BOT_USERNAME:
+        return
     if re.search(r"t\.me/TrueMafiaBlackBot", message.text or "", re.IGNORECASE):
         return
 
