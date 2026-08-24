@@ -99,12 +99,7 @@ def _extract_error(data, raw, status):
 
 @Client.on_message(_TRIGGER)
 async def chatbot(client, message: Message):
-    if not db.get("core.chatbot", "enabled", True):
-        return
     if not deepseek_key:
-        await message.reply_text(
-            "<b>DEEPSEEK_KEY не задан в переменных окружения!</b>"
-        )
         return
 
     prompt = message.text
@@ -147,28 +142,6 @@ async def chatbot(client, message: Message):
             return
 
 
-@Client.on_message(filters.command("chatoff", prefix) & filters.me)
-async def chatoff(_, message: Message):
-    db.set("core.chatbot", "enabled", False)
-    await message.reply_text("<b>ChatBot is off now</b>")
-
-
-@Client.on_message(filters.command("chaton", prefix) & filters.me)
-async def chaton(_, message: Message):
-    db.set("core.chatbot", "enabled", True)
-    await message.reply_text("<b>ChatBot is on now</b>")
-
-
-@Client.on_message(filters.command("chatpm", prefix) & filters.me)
-async def chatpm(_, message: Message):
-    cur = db.get("core.chatbot", "pm", False)
-    db.set("core.chatbot", "pm", not cur)
-    state = "on" if not cur else "off"
-    await message.reply_text(f"<b>ChatBot в ЛС: {state}</b>\n<i>Упоминание обязательно всегда</i>")
-
-
 modules_help["chatbot"] = {
-    "chatoff": "Turn off AI ChatBot",
-    "chaton": "Turn on AI ChatBot",
-    "chatpm": "Toggle AI answers in private messages (mention still required)",
+    "chatbot": "AI answers on mention (always on)",
 }
