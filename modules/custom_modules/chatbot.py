@@ -19,11 +19,13 @@ from utils.db import db
 
 def _pm_allowed(_, __, message):
     if message.chat and message.chat.type == enums.ChatType.PRIVATE:
-        return db.get("core.chatbot", "pm", False)
+        return db.get("core.chatbot", "pm", True)
     return True
 
 
-_TRIGGER = filters.mentioned & filters.text & ~filters.me & filters.create(_pm_allowed)
+_TRIGGER = (filters.mentioned | filters.private) & filters.text & ~filters.me & filters.create(
+    _pm_allowed
+)
 
 _MAFIA_BOT_USERNAME = "truemafiablackbot"
 
