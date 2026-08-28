@@ -138,8 +138,17 @@ async def copyfilms(client: Client, message: Message):
             first = re.sub(r"^[^\wА-Яа-я]+", "", first).strip()
             if len(first) < 3 or len(first) > 120:
                 continue
-            if first.lower() in ("подпишись", "реклама", "подписывайся"):
+            low = first.lower()
+            junk = ("подпишись","реклама","подписывайся","invisvpn","впн","готово","кликнул","внизу кнопки","канал с играми","original","дубляж","закадров","menю","start")
+            if any(j in low for j in junk):
                 continue
+            # фильтруем мусор без года - фильм должен содержать (YYYY)
+            if not re.search(r"\(\d{4}\)", first):
+                continue
+            if "/" not in first and "http" not in low:
+                # одиночные типа "Сталкер (1979)" - оставляем если с годом
+                if not re.search(r"\(\d{4}\)", first):
+                    continue
             if only_en:
                 if not re.search(r"[A-Za-z]", first) or re.search(r"[А-Яа-яЁё]", first):
                     continue
