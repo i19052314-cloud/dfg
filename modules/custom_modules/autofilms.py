@@ -9,6 +9,8 @@ async def fetch_from_bot(client: Client, link: str):
     if not m:
         return None
     bot = m.group(1)
+    if not bot.startswith("@"):
+        bot = "@" + bot
     payload = m.group(2)
     try:
         await client.send_message(bot, f"/start {payload}")
