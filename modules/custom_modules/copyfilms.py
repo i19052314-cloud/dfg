@@ -36,32 +36,57 @@ async def copyfilms(client: Client, message: Message):
         pass
     titles = []
     link_pattern = re.compile(r"https?://t\.me/NitokinMovies4Bot\?start=[\w\-]+", re.IGNORECASE)
+    raw_pattern = re.compile(r"t\.me/NitokinMovies4Bot\?start=[\w\-]+", re.IGNORECASE)
     try:
         async for msg in client.get_chat_history(target, limit=limit):
             text = msg.text or msg.caption or ""
-            # собираем все ссылки из текста + кнопок
+            # собираем все ссылки из текста + кнопок + сырого объекта
             found_links = []
             if text:
                 found_links += link_pattern.findall(text)
-                # иногда без https: t.me/NitokinMovies4Bot?start=
-                found_links += re.findall(r"t\.me/NitokinMovies4Bot\?start=[\w\-]+", text, re.IGNORECASE)
-                found_links = [l if l.startswith("http") else "https://" + l for l in found_links]
-            # кнопки
-            if msg.reply_markup and getattr(msg.reply_markup, "inline_keyboard", None):
-                for row in msg.reply_markup.inline_keyboard:
-                    for btn in row:
-                        url = getattr(btn, "url", None)
-                        if url and "NitokinMovies4Bot" in url:
-                            found_links += link_pattern.findall(url)
-                            if not found_links or url not in found_links:
-                                if "start=" in url:
+                found_links += raw_pattern.findall(text)
+            # кнопки - пробуем 2 способа
+            try:
+                if msg.reply_markup:
+                    kb = getattr(msg.reply_markup, "inline_keyboard", None)
+                    if kb:
+                        for row in kb:
+                            for btn in row:
+                                url = getattr(btn, "url", None)
+                                if url and "NitokinMovies4Bot" in url:
                                     found_links.append(url)
-            if found_links:
-                for link in found_links:
-                    # нормализуем
-                    if not link.startswith("http"):
-                        link = "https://" + link.lstrip("/")
-                    titles.append(link)
+            except:
+                pass
+            # фолбек: ищем в str(msg) - покрывает все варианты хранения кнопки
+            if not found_links:
+                try:
+                    raw = str(msg)
+                    found_links += link_pattern.findall(raw)
+                    found_links += raw_pattern.findall(raw)
+                except:
+                    pass
+            # нормализуем и дедуп внутри сообщения
+            normed = []
+            for l in found_links:
+                if not l.startswith("http"):
+                    l = "https://" + l.lstrip("/")
+                # чистим &amp; и хвост
+                l = l.split("&")[0].split(" ")[0].split("\"")[0]
+                if l not in normed:
+                    normed.append(l)
+            if normed:
+                # если есть ссылка - берем название + ссылку вместе
+                first = text.strip().split("\n")[0].strip() if text.strip() else ""
+                first = re.sub(r"^[^\wА-Яа-я]+", "", first).strip() if first else ""
+                for link in normed:
+                    if first and len(first) < 120 and first.lower() not in ("подпишись","реклама"):
+                        # формат: Название - ссылка (если title есть)
+                        if link.lower() not in first.lower():
+                            titles.append(f"{first} - {link}")
+                        else:
+                            titles.append(link)
+                    else:
+                        titles.append(link)
                 continue
             # если ссылок нет - fallback на название
             if not text.strip():
