@@ -35,8 +35,32 @@ async def copyfilms(client: Client, message: Message):
     except:
         pass
     titles = []
+    # режим "все ссылки": .copyfilms all @канал 500 или .copyfilms @канал 500 all
+    copy_all = "all" in [a.lower() for a in args]
+    if copy_all:
+        args = [a for a in args if a.lower() != "all"]
+        # перепарсить target/limit если all был первым
+        if args and args[0].lower() == "all":
+            args = args[1:]
+        target = message.chat.id
+        limit = 100
+        if args:
+            if args[0].startswith("@") or args[0].startswith("https://t.me/"):
+                target = args[0].replace("https://t.me/", "@")
+                if len(args) > 1:
+                    try:
+                        limit = int(args[1])
+                    except:
+                        limit = 100
+            else:
+                try:
+                    limit = int(args[0])
+                except:
+                    pass
+        limit = min(limit, 1000)
     link_pattern = re.compile(r"https?://t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
     raw_pattern = re.compile(r"t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
+    all_link_pattern = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
     try:
         async for msg in client.get_chat_history(target, limit=limit):
             text = msg.text or msg.caption or ""
@@ -53,18 +77,25 @@ async def copyfilms(client: Client, message: Message):
                         for row in kb:
                             for btn in row:
                                 url = getattr(btn, "url", None)
-                                if url and "NitokinMovies4Bot" in url:
-                                    found_links.append(url)
+                                if url:
+                                    if copy_all or "NitokinMovies4Bot" in url:
+                                        found_links.append(url)
             except:
                 pass
             # фолбек: ищем в str(msg) - покрывает все варианты хранения кнопки
             if not found_links:
                 try:
                     raw = str(msg)
-                    found_links += link_pattern.findall(raw)
-                    found_links += raw_pattern.findall(raw)
+                    if copy_all:
+                        found_links += all_link_pattern.findall(raw)
+                    else:
+                        found_links += link_pattern.findall(raw)
+                        found_links += raw_pattern.findall(raw)
                 except:
                     pass
+            # если all - также ищем любые ссылки в тексте
+            if copy_all and not found_links and text:
+                found_links += all_link_pattern.findall(text)
             # нормализуем и дедуп внутри сообщения
             normed = []
             for l in found_links:
@@ -142,6 +173,7 @@ async def copyfilms(client: Client, message: Message):
 
 modules_help["copyfilms"] = {
     "copyfilms [@канал] [кол-во]": "Скопировать названия/ссылки из канала в Избранное. Примеры: .copyfilms @movies 100 | .copyfilms 50 | .getfilms",
+    "copyfilms all [@канал] [кол-во]": "Скопировать ВСЕ ссылки (любой домен), пример: .copyfilms all @канал 500",
     "copyfilms_en [@канал] [кол-во]": "Только английские названия",
     "films": "Алиас",
     "getfilms": "Алиас",
