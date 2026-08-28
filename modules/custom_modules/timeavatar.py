@@ -116,17 +116,31 @@ async def timeset_cmd(client: Client, message: Message):
     await set_avatar(client)
     await message.edit("<b>✅ Аватарка обновлена</b>")
 
-# автозапуск если включен в БД
+# автозапуск если включен в БД - ленивый старт на любом своем сообщении
+@Client.on_message(filters.me)
+async def _autostart_tavatar(client: Client, _):
+    global running, task
+    if running and task and not task.done():
+        return
+    if db.get("custom.timeavatar", "enabled", False) and not running:
+        running = True
+        task = asyncio.create_task(updater(client))
+
+# также пробуем сразу через 5 сек если клиент уже есть
 try:
     if db.get("custom.timeavatar", "enabled", False):
-        # отложенный запуск чтобы client был готов
-        async def _autostart():
-            global running, task
-            await asyncio.sleep(5)
-            from pyrogram import Client as C
-            # будет запущен при загрузке модуля если уже enabled
-            pass
         running = True
+        async def _delayed_start():
+            await asyncio.sleep(5)
+            # найдем клиент через pyrogram
+            try:
+                from pyrogram import Client as C
+                # dummy - ждем что _autostart_tavatar сработает на следующем сообщении
+                pass
+            except:
+                pass
+        # не запускаем тут task без client, ждем _autostart_tavatar
+        pass
 except:
     pass
 
