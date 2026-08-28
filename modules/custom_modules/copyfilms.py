@@ -35,8 +35,8 @@ async def copyfilms(client: Client, message: Message):
     except:
         pass
     titles = []
-    link_pattern = re.compile(r"https?://t\.me/NitokinMovies4Bot\?start=[\w\-]+", re.IGNORECASE)
-    raw_pattern = re.compile(r"t\.me/NitokinMovies4Bot\?start=[\w\-]+", re.IGNORECASE)
+    link_pattern = re.compile(r"https?://t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
+    raw_pattern = re.compile(r"t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
     try:
         async for msg in client.get_chat_history(target, limit=limit):
             text = msg.text or msg.caption or ""
@@ -70,8 +70,8 @@ async def copyfilms(client: Client, message: Message):
             for l in found_links:
                 if not l.startswith("http"):
                     l = "https://" + l.lstrip("/")
-                # чистим &amp; и хвост
-                l = l.split("&")[0].split(" ")[0].split("\"")[0]
+                l = l.split("&")[0].split(" ")[0].split("\"")[0].split("'")[0].strip()
+                l = re.sub(r"[^A-Za-z0-9_\-:?/\.=&]+$", "", l)
                 if l not in normed:
                     normed.append(l)
             if normed:
