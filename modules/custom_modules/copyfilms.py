@@ -58,8 +58,8 @@ async def copyfilms(client: Client, message: Message):
                 except:
                     pass
         limit = min(limit, 1000)
-    link_pattern = re.compile(r"https?://t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
-    raw_pattern = re.compile(r"t\.me/NitokinMovies4Bot\?start=[^\s\"'&]+", re.IGNORECASE)
+    link_pattern = re.compile(r"https?://t\.me/Nitokin(?:Movies|Media)\d*Bot\?start=[^\s\"'&]+", re.IGNORECASE)
+    raw_pattern = re.compile(r"t\.me/Nitokin(?:Movies|Media)\d*Bot\?start=[^\s\"'&]+", re.IGNORECASE)
     all_link_pattern = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
     try:
         async for msg in client.get_chat_history(target, limit=limit):
@@ -78,7 +78,7 @@ async def copyfilms(client: Client, message: Message):
                             for btn in row:
                                 url = getattr(btn, "url", None)
                                 if url:
-                                    if copy_all or "NitokinMovies4Bot" in url:
+                                    if copy_all or "Nitokin" in url:
                                         found_links.append(url)
             except:
                 pass
