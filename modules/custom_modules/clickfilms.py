@@ -11,20 +11,34 @@ async def click_btn(client: Client, message: Message):
     # .clickfilms - алиас
     args = message.command[1:]
     target = message.chat.id
-    # ищем последнее сообщение с кнопками от бота
+    # ищем последнее сообщение с кнопками от бота (inline + reply)
     bot_msg = None
-    async for msg in client.get_chat_history(target, limit=20):
-        if msg.reply_markup and getattr(msg.reply_markup, "inline_keyboard", None):
-            # ищем кнопки с фильмами
-            bot_msg = msg
-            break
-    if not bot_msg:
+    kb = None
+    is_inline = True
+    async for msg in client.get_chat_history(target, limit=50):
+        if msg.reply_markup:
+            if getattr(msg.reply_markup, "inline_keyboard", None):
+                bot_msg = msg
+                kb = msg.reply_markup.inline_keyboard
+                is_inline = True
+                break
+            if getattr(msg.reply_markup, "keyboard", None):
+                bot_msg = msg
+                kb = msg.reply_markup.keyboard
+                is_inline = False
+                break
+            # фолбек по str
+            if "keyboard" in str(msg.reply_markup).lower():
+                bot_msg = msg
+                kb = getattr(msg.reply_markup, "inline_keyboard", None) or getattr(msg.reply_markup, "keyboard", None)
+                is_inline = bool(getattr(msg.reply_markup, "inline_keyboard", None))
+                break
+    if not bot_msg or not kb:
         try:
-            await message.edit("<b>Не нашел сообщения с кнопками</b>")
+            await message.edit("<b>Не нашел сообщения с кнопками (проверь что бот отправил меню с кнопками в этом чате, лимит 50)</b>")
         except:
             pass
         return
-    kb = bot_msg.reply_markup.inline_keyboard
     # flat list
     flat = []
     for r, row in enumerate(kb):
@@ -40,8 +54,12 @@ async def click_btn(client: Client, message: Message):
         except:
             pass
         for r, c, btn in flat:
-            txt = getattr(btn, "text", "кнопка")
+            txt = getattr(btn, "text", str(btn) if isinstance(btn, str) else "кнопка")
             try:
+                if not is_inline:
+                    await client.send_message(target, txt)
+                    await asyncio.sleep(1.5)
+                    continue
                 # url кнопки - просто открываем
                 if getattr(btn, "url", None):
                     await client.send_message("me", f"URL кнопка: {txt} -> {btn.url}")
@@ -76,8 +94,14 @@ async def click_btn(client: Client, message: Message):
         except:
             idx = 0
     r, c, btn = flat[idx]
-    txt = getattr(btn, "text", f"{r}:{c}")
+    # для reply-клавы btn - строка, для inline - объект
+    txt = getattr(btn, "text", str(btn) if isinstance(btn, str) else f"{r}:{c}")
     try:
+        if not is_inline:
+            # ReplyKeyboard - отправляем текст кнопки как сообщение
+            await client.send_message(target, txt)
+            await message.edit(f"<b>Отправил: {txt}</b>")
+            return
         if getattr(btn, "url", None):
             await message.edit(f"<b>Кнопка URL: {btn.url}</b>\n{txt}")
             return
