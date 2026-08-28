@@ -36,24 +36,48 @@ async def set_avatar(client: Client):
     except:
         now = datetime.now().strftime("%H:%M")
     buf = render_time(now, bg, fg)
-    # сохраняем временно
     with open("/tmp/tavatar.jpg", "wb") as f:
         f.write(buf.getvalue())
-    # удаляем старые аватарки
+    # удаляем старые - пробуем 2 метода
     try:
-        photos = await client.get_profile_photos("me")
-        if photos and len(photos) > 0:
-            # удаляем все кроме текущей? оставим 0 чтобы чистить
-            await client.delete_profile_photos([p.file_id for p in photos])
-    except:
-        pass
+        photos = None
+        try:
+            photos = await client.get_chat_photos("me")
+        except:
+            try:
+                photos = await client.get_profile_photos("me")
+            except:
+                photos = None
+        if photos:
+            # photos может быть list или объект с photos
+            lst = photos if isinstance(photos, list) else getattr(photos, "photos", photos)
+            if lst:
+                ids = []
+                for p in lst:
+                    fid = getattr(p, "file_id", None) or getattr(p, "photo_id", None)
+                    if fid:
+                        ids.append(fid)
+                if ids:
+                    # оставляем 0 последних, удаляем все
+                    await client.delete_profile_photos(ids)
+    except Exception as e:
+        try:
+            await client.send_message("me", f"tavatar del err: {e}")
+        except:
+            pass
     try:
         await client.set_profile_photo(photo="/tmp/tavatar.jpg")
     except Exception as e:
-        # FloodWait
+        try:
+            await client.send_message("me", f"tavatar set err: {e}")
+        except:
+            pass
         from pyrogram.errors import FloodWait
         if "FloodWait" in str(type(e)):
-            await asyncio.sleep(e.value + 5)
+            try:
+                await asyncio.sleep(int(e.value) + 5)
+            except:
+                await asyncio.sleep(60)
     try:
         os.remove("/tmp/tavatar.jpg")
     except:
@@ -67,8 +91,11 @@ async def updater(client: Client):
             await set_avatar(client)
         except asyncio.CancelledError:
             break
-        except:
-            pass
+        except Exception as e:
+            try:
+                await client.send_message("me", f"tavatar updater err: {e}")
+            except:
+                pass
         try:
             await asyncio.sleep(interval)
         except asyncio.CancelledError:
