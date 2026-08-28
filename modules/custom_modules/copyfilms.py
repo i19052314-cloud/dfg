@@ -1,6 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from utils import modules_help, prefix
+from utils.db import db
 import re
 
 @Client.on_message(filters.command(["copyfilms", "films", "getfilms", "copyfilms_en", "films_en"], prefix) & filters.me)
@@ -36,7 +37,18 @@ async def copyfilms(client: Client, message: Message):
         pass
     titles = []
     # режим "все ссылки": .copyfilms all @канал 500 или .copyfilms @канал 500 all
+    # канал для БД: .copyfilms @источник @твой_канал 500 - пишет в канал с антидубликатом
     copy_all = "all" in [a.lower() for a in args]
+    dest_channel = None
+    # детектим канал назначения вторым @аргом
+    tmp_args = [a for a in args if a.lower() != "all" and a.lower() != "en"]
+    if len(tmp_args) >= 2 and tmp_args[0].startswith("@") and tmp_args[1].startswith("@"):
+        dest_channel = tmp_args[1]
+        # убираем дест из парсинга source
+        args = [tmp_args[0]] + tmp_args[2:]
+    elif len(tmp_args) >= 2 and tmp_args[0].startswith("https://t.me/") and tmp_args[1].startswith("@"):
+        dest_channel = tmp_args[1]
+        args = [tmp_args[0]] + tmp_args[2:]
     if copy_all:
         args = [a for a in args if a.lower() != "all"]
         # перепарсить target/limit если all был первым
@@ -144,27 +156,57 @@ async def copyfilms(client: Client, message: Message):
         except:
             pass
         return
-    # убираем дубли сохраняя порядок
+    # убираем дубли сохраняя порядок + антидубликат БД
     seen = set()
     uniq = []
+    # грузим уже отправленные из БД
+    sent_db = db.get("custom.copyfilms", "sent", [])
+    sent_set = set(s.lower() for s in sent_db)
     for t in titles:
         low = t.lower()
-        if low not in seen:
+        if low not in seen and low not in sent_set:
             seen.add(low)
             uniq.append(t)
+    if not uniq:
+        try:
+            await message.edit("<b>Все фильмы уже в БД, дубликатов нет</b>")
+        except:
+            pass
+        return
     uniq = uniq[::-1]  # от старых к новым
     out = "\n".join(f"{i+1}. {t}" for i, t in enumerate(uniq))
-    # отправляем в Избранное
+    # отправляем в канал или Избранное
+    dest = dest_channel or "me"
     try:
         if len(out) > 4000:
             with open("films.txt", "w", encoding="utf-8") as f:
                 f.write(out)
-            await client.send_document("me", "films.txt", caption=f"<b>Скопировано {len(uniq)} фильмов из {target}</b>")
+            await client.send_document(dest, "films.txt", caption=f"<b>Скопировано {len(uniq)} фильмов из {target}</b>")
             import os
             os.remove("films.txt")
         else:
-            await client.send_message("me", f"<b>Фильмы из {target} ({len(uniq)} шт):</b>\n\n{out}")
-        await message.edit(f"<b>Готово: {len(uniq)} названий отправлено в Избранное</b>")
+            # если канал - шлем по одному фильму строкой чтобы не резало
+            if dest_channel:
+                for entry in uniq:
+                    try:
+                        await client.send_message(dest, entry)
+                        await asyncio.sleep(0.5)
+                    except Exception as e:
+                        # FloodWait
+                        try:
+                            from pyrogram.errors import FloodWait
+                            if "FloodWait" in str(type(e)):
+                                await asyncio.sleep(e.value)
+                                await client.send_message(dest, entry)
+                        except:
+                            pass
+                await client.send_message("me", f"<b>Залил {len(uniq)} новых фильмов в {dest_channel}</b>")
+            else:
+                await client.send_message("me", f"<b>Фильмы из {target} ({len(uniq)} шт):</b>\n\n{out}")
+        # сохраняем в БД
+        sent_db.extend(uniq)
+        db.set("custom.copyfilms", "sent", sent_db)
+        await message.edit(f"<b>Готово: {len(uniq)} новых отправлено в {dest} (дубли отсеяны)</b>")
     except Exception as e:
         try:
             await message.edit(f"<b>Ошибка отправки: {e}</b>")
@@ -172,9 +214,10 @@ async def copyfilms(client: Client, message: Message):
             pass
 
 modules_help["copyfilms"] = {
-    "copyfilms [@канал] [кол-во]": "Скопировать названия/ссылки из канала в Избранное. Примеры: .copyfilms @movies 100 | .copyfilms 50 | .getfilms",
-    "copyfilms all [@канал] [кол-во]": "Скопировать ВСЕ ссылки (любой домен), пример: .copyfilms all @канал 500",
-    "copyfilms_en [@канал] [кол-во]": "Только английские названия",
+    "copyfilms [@канал] [кол-во]": "Скопировать в Избранное. Примеры: .copyfilms @movies 100 | .copyfilms 50",
+    "copyfilms [@ист @назнач]": "Скопировать в канал с антидубликатом БД: .copyfilms @источник @мой_канал 500",
+    "copyfilms all [@канал] [кол-во]": "ВСЕ ссылки, пример: .copyfilms all @канал 500",
+    "copyfilms_en [@канал] [кол-во]": "Только английские",
     "films": "Алиас",
     "getfilms": "Алиас",
     "films_en": "Только англ",
