@@ -94,11 +94,17 @@ async def click_btn(client: Client, message: Message):
         except:
             idx = 0
     r, c, btn = flat[idx]
-    # для reply-клавы btn - строка, для inline - объект
     txt = getattr(btn, "text", str(btn) if isinstance(btn, str) else f"{r}:{c}")
+    # перечитываем свежее сообщение чтобы id не протух
+    try:
+        async for fresh in client.get_chat_history(target, limit=5):
+            if fresh.id == bot_msg.id and fresh.reply_markup:
+                bot_msg = fresh
+                break
+    except:
+        pass
     try:
         if not is_inline:
-            # ReplyKeyboard - отправляем текст кнопки как сообщение
             await client.send_message(target, txt)
             await message.edit(f"<b>Отправил: {txt}</b>")
             return
@@ -107,8 +113,18 @@ async def click_btn(client: Client, message: Message):
             return
         try:
             await bot_msg.click(r, c)
-        except:
-            await client.request_callback_answer(target, bot_msg.id, getattr(btn, "callback_data", ""))
+        except Exception as e1:
+            # MESSAGE_ID_INVALID - сообщение протухло, ищем заново
+            if "MESSAGE_ID_INVALID" in str(e1):
+                await message.edit(f"<b>Сообщение протухло, обнови меню бота и сразу .click {idx+1}</b>")
+                return
+            try:
+                await client.request_callback_answer(target, bot_msg.id, getattr(btn, "callback_data", ""))
+            except Exception as e2:
+                if "MESSAGE_ID_INVALID" in str(e2):
+                    await message.edit(f"<b>Кнопка устарела - попроси бота прислать меню заново</b>")
+                    return
+                raise e2
         await message.edit(f"<b>Кликнул: {txt}</b>")
     except Exception as e:
         try:

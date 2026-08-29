@@ -204,6 +204,39 @@ async def mafia_game(client, message):
             pass
 
 
+@Client.on_message(filters.command(["mheal", "mkill", "mvote"], prefix) & filters.me)
+async def mafia_manual(client, message):
+    # .mheal 1 / .mkill 2 / .mvote 1 - вручную кликнуть N-ю кнопку в фазе выбора
+    gid = game_group()
+    target = gid or message.chat.id
+    try:
+        idx = int(message.command[1]) - 1 if len(message.command) > 1 else 0
+    except:
+        idx = 0
+    # ищем последнее сообщение мафии с фазой выбора
+    bot_msg = None
+    async for msg in client.get_chat_history(target, limit=10):
+        if msg.from_user and (msg.from_user.username or "").lower() == MAFIA_BOT.lower():
+            txt = msg.text or msg.caption or ""
+            if MAFIA_PHASE_RE.search(txt):
+                bot_msg = msg
+                break
+            if msg.reply_markup and msg.reply_markup.inline_keyboard:
+                bot_msg = msg
+                break
+    if not bot_msg:
+        await message.edit("<b>Не нашел сообщения мафии с выбором</b>")
+        return
+    btns = _buttons(bot_msg)
+    safe = [(bt, data) for bt, data in btns if not MAFIA_DANGER_RE.search(bt)]
+    if not safe:
+        safe = btns
+    if idx < 0 or idx >= len(safe):
+        idx = 0
+    bt, data = safe[idx]
+    await _click(client, bot_msg, bt, data)
+    await message.edit(f"<b>Кликнул: {bt} ({idx+1}/{len(safe)})</b>")
+
 @Client.on_message(filters.command("mafiadebug", prefix) & filters.me)
 async def mafia_debug(_, message):
     cur = db.get("custom.mafia", "debug", False)
@@ -216,4 +249,7 @@ modules_help["mafia"] = {
     "mafia": "Join/start mafia game",
     "mafiagroup": "Set current chat as THE mafia game group",
     "mafiadebug": "Toggle mafia event logging to Saved Messages",
+    "mheal [N]": "Вылечить игрока N-й кнопкой (фаза доктора)",
+    "mkill [N]": "Убить жертву N-й кнопкой (фаза мафии)",
+    "mvote [N]": "Проголосовать N-й кнопкой (фаза голосования)",
 }
